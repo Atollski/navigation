@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+  <head>
+	<title>Navigation</title>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<style>
+	  input {
+		height: 20px;
+		border-width: 1px;
+		border-radius: 3px;
+	  }
+	  
+	  .compass {
+		width: 50px;
+		transition: 1s;
+		text-align: center;
+		transition-delay: 0.2s;
+		  
+		background-image: conic-gradient(from calc((var(--bearing) - 10) * 1deg) ,transparent ,red 10deg, transparent 20deg);
+	  }
+	  .compass:focus {
+		border-radius: 50%;
+		transition: 0.2s;
+		transition-delay: 0s;
+		height: 50px;
+		background-image: 
+		  conic-gradient(from calc((var(--bearing) - 10) * 1deg) ,transparent ,red 10deg, transparent 20deg)
+		  ,radial-gradient(white 50%, transparent 50% 100%)
+		  ,repeating-conic-gradient(
+			black 0deg
+			,transparent 2deg 28deg
+			,black 30deg
+		  )
+		  
+		;
+	
+	  }
+	</style>
+	<script>
+		  /*radial-gradient(transparent, black)*/
+/*		  ,conic-gradient(from calc((var(--bearing) - 10) * 1deg) ,transparent ,red 10deg, transparent 20deg)
+		  ,conic-gradient(transparent, red, transparent, red)*/
+	  async function pageSize() {
+		let response = await fetch("./index.html", {mode: "no-cors"});
+		let text = await response.text();
+		return text.length;
+	  }
+	  
+	  let lastPageSize = null;
+	  
+	  let interval = setInterval(()=>{
+		pageSize().then(size => {
+		  lastPageSize = lastPageSize || size;
+		  if (lastPageSize !== size) location.reload();
+		});
+	  }, 1000);
+	  
+	  document.addEventListener("input", event => {
+		if(event.target.dataset.variable !== undefined) event.target.style.setProperty("--" + event.target.dataset.variable, event.target.value)
+	  });
+	</script>
+  </head>
+  <body>
+	<input type="text" class="" />
+	<input type="number" class="compass" data-variable="bearing" />
+	<input type="text" class="" />
+  </body>
+	
+</html>
