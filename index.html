@@ -4,68 +4,113 @@
 	<title>Navigation</title>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+	<script src="calculator.js"></script>
 	<style>
-	  input {
-		height: 20px;
-		border-width: 1px;
-		border-radius: 3px;
-	  }
-	  
-	  .compass {
-		width: 50px;
-		transition: 1s;
-		text-align: center;
-		transition-delay: 0.2s;
-		  
-		background-image: conic-gradient(from calc((var(--bearing) - 10) * 1deg) ,transparent ,red 10deg, transparent 20deg);
-	  }
-	  .compass:focus {
-		border-radius: 50%;
-		transition: 0.2s;
-		transition-delay: 0s;
-		height: 50px;
-		background-image: 
-		  conic-gradient(from calc((var(--bearing) - 10) * 1deg) ,transparent ,red 10deg, transparent 20deg)
-		  ,radial-gradient(white 50%, transparent 50% 100%)
-		  ,repeating-conic-gradient(
-			black 0deg
-			,transparent 2deg 28deg
-			,black 30deg
-		  )
-		  
-		;
-	
-	  }
+		input {
+			height: 25px;
+			border-width: 1px;
+			border-radius: 3px;
+			transition: 1s;
+			transition-delay: 0.2s;
+			box-sizing: border-box;
+		}
+
+		.compass {
+			width: 50px;
+			text-align: right;
+
+			background-image:
+				radial-gradient(white 40%, transparent 50%)
+				,conic-gradient(from calc((var(--bearing) - 10) * 1deg) ,transparent ,red 10deg, transparent 20deg)		
+				,radial-gradient(white 60%, transparent 70%)
+				/*,linear-gradient(transparent 45%, black 45% 55%, transparent 55%)*/
+				,linear-gradient(transparent 45.5%, black 45.5% 54.5%, transparent 54.5%)
+				,linear-gradient(90deg, transparent 48%, black 48% 52%, transparent 52%)
+				,linear-gradient(-45deg, transparent 48%, black 48% 52%, transparent 52%)
+				,linear-gradient(45deg, transparent 48%, black 48% 52%, transparent 52%)
+			;
+		}
+
+		.compass:focus {
+			border-radius: 50%;
+			transition: 0.2s;
+			transition-delay: 0s;
+			height: 50px;
+			background-image: 
+				conic-gradient(from calc((var(--bearing) - 10) * 1deg) ,transparent ,red 10deg, transparent 20deg)
+				,radial-gradient(white 45%, transparent 50%, #c7b27973 80%)
+				,repeating-conic-gradient(
+					black 0deg
+					,transparent 2deg 13deg
+					,black 15deg
+				)
+			;
+		}
 	</style>
 	<script>
-		  /*radial-gradient(transparent, black)*/
-/*		  ,conic-gradient(from calc((var(--bearing) - 10) * 1deg) ,transparent ,red 10deg, transparent 20deg)
-		  ,conic-gradient(transparent, red, transparent, red)*/
-	  async function pageSize() {
-		let response = await fetch("./index.html", {mode: "no-cors"});
-		let text = await response.text();
-		return text.length;
-	  }
-	  
-	  let lastPageSize = null;
-	  
-	  let interval = setInterval(()=>{
-		pageSize().then(size => {
-		  lastPageSize = lastPageSize || size;
-		  if (lastPageSize !== size) location.reload();
-		});
-	  }, 1000);
-	  
-	  document.addEventListener("input", event => {
-		if(event.target.dataset.variable !== undefined) event.target.style.setProperty("--" + event.target.dataset.variable, event.target.value)
-	  });
+		
+		
+		function setVariable(target) {
+			if (target.dataset.variable !== undefined) {
+				target.style.setProperty("--" + target.dataset.variable, target.value);
+			}
+			return false;
+		}
+		
+		function addMeasurement() {
+			let id = 1;
+			Object.values(measurements).forEach(measurement => id = Math.max(id, measurement.id + 1));
+			setMeasurement({
+				id: id
+				,from: document.addMeasurement.from.value
+				,bearing: parseInt(document.addMeasurement.bearing.value)
+				,to: document.addMeasurement.to.value
+			});
+
+			// erase form
+			document.addMeasurement.bearing.value = "";
+			document.addMeasurement.to.value = "";
+			setVariable(document.addMeasurement.bearing);
+			document.addMeasurement.bearing.focus();
+			$("#fromList")[0].innerHTML = "";
+			Object.values(landmarks).forEach(landmark=>{
+				console.log(landmark);
+				let newOption = $("#landmark")[0].content.cloneNode(true);
+				newOption.querySelector("option").value = landmark.name;
+				$("#fromList")[0].appendChild(newOption);
+			});
+		}
+		
+		document.addEventListener("input", event => setVariable(event.target));
+		
+		// easier element selector
+		var $ = id => {return document.querySelectorAll(id);};		
 	</script>
-  </head>
-  <body>
-	<input type="text" class="" />
-	<input type="number" class="compass" data-variable="bearing" />
-	<input type="text" class="" />
-  </body>
-	
+	</head>
+	<body>
+		<template id="editMeasurement">
+			<div class="measurement">
+				<input name="from" type="text" list="fromList" placeholder="From landmark" title="Landmark from where bearing taken" required />
+				<datalist id="fromList"></datalist>
+				<input name="bearing" type="number" class="compass" data-variable="bearing" placeholder="Brng" title="Bearing from landmark to observed landmark" required />
+				<input name="to" type="text" list="toList" placeholder="Observed landmark" title="Observed landmark" />
+				<datalist id="toList"></datalist>
+			</div>
+		</template>
+		<template id="landmark">
+			<option value="no"></option>
+		</template>
+		
+		
+		<form name="addMeasurement" action="javascript:addMeasurement();" autocomplete="off">
+			<div class="measurement">
+				<input name="from" type="text" list="fromList" placeholder="From landmark" title="Landmark from where bearing taken" required />
+				<datalist id="fromList"></datalist>
+				<input name="bearing" type="number" class="compass" data-variable="bearing" placeholder="Brng" title="Bearing from landmark to observed landmark" required />
+				<input name="to" type="text" list="toList" placeholder="Observed landmark" title="Observed landmark" />
+				<datalist id="toList"></datalist>
+				<input type="submit" value="Add" />
+			</div>
+		</form>
+	</body>
 </html>
