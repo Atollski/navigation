@@ -4,66 +4,87 @@ let measurements = {};
 let debug = true; // triangulation debugging
 
 
+function addMeasurement() {
+	let id = 1;
+	Object.values(measurements).forEach(measurement => id = Math.max(id, measurement.id + 1));
+	setMeasurement({
+		id: id
+		,from: document.addMeasurement.from.value
+		,bearing: parseInt(document.addMeasurement.bearing.value)
+		,to: document.addMeasurement.to.value
+	});
+
+	// erase form
+	document.addMeasurement.bearing.value = "";
+	document.addMeasurement.to.value = "";
+	setVariable(document.addMeasurement.bearing);
+	document.addMeasurement.bearing.focus();
+	$("#fromList")[0].innerHTML = "";
+	Object.values(landmarks).forEach(landmark=>{
+		let newOption = $("#landmark")[0].content.cloneNode(true);
+		newOption.querySelector("option").value = landmark.name;
+		$("#fromList")[0].appendChild(newOption);
+	});
+}
 
 function setMeasurement(measurement) {
 	measurements[measurement.id] = measurement;
 	
-	// scrub the islands map
+	// scrub the landmarks map
 	landmarks = {};
-	console.log(calculateIslands());
-	
+	console.log(calculateLandmarks());
 }
 
 /**
- * Construct the island list entirely from the bearing data
+ * Construct the landmark list entirely from the bearing data
  */
-function calculateIslands() {
-	let firstIsland = null;
-	let secondIsland = null;
-	let firstIslands = {}; // use this to calculate the first two islands
+function calculateLandmarks() {
+	let firstLandmark = null;
+	let secondLandmark = null;
+	let firstLandmarks = {}; // use this to calculate the first two landmarks
 
 	// construct initial data from measurements data
 
 	Object.values(measurements).forEach(measurement => {
 		landmarks[measurement.from] = landmarks[measurement.from] || {name: measurement.from};
-		let fromIsland = landmarks[measurement.from];
-		fromIsland.visited = true; // if you measured from this island then you were there!
+		let fromLandmark = landmarks[measurement.from];
+		fromLandmark.visited = true; // if you measured from this landmark then you were there!
 
-		if (firstIsland === null && firstIslands[measurement.from] !== undefined) {
-			firstIsland = landmarks[firstIslands[measurement.from].from];
-			secondIsland = fromIsland;
+		if (firstLandmark === null && firstLandmarks[measurement.from] !== undefined) {
+			firstLandmark = landmarks[firstLandmarks[measurement.from].from];
+			secondLandmark = fromLandmark;
 		}
 
 		if (measurement.to !== "") { // the destination has been named
 			// initialise known targets array
-			firstIslands[measurement.to] = measurement;
+			firstLandmarks[measurement.to] = measurement;
 
-			fromIsland.knownTargets = fromIsland.knownTargets || {};
+			fromLandmark.knownTargets = fromLandmark.knownTargets || {};
 
 			// add the current record
-			fromIsland.knownTargets[measurement.to] = {
+			fromLandmark.knownTargets[measurement.to] = {
 				name: measurement.to
 				,bearing: measurement.bearing
 			};
 
 			landmarks[measurement.to] = landmarks[measurement.to] || {name: measurement.to};
-		} else { // unnamed islands are just treated as bearings at this point
-			fromIsland.unknownTargets = fromIsland.unknownTargets || [];
-			fromIsland.unknownTargets.push({"bearing": measurement.bearing});
+		} else { // unnamed landmarks are just treated as bearings at this point
+			fromLandmark.unknownTargets = fromLandmark.unknownTargets || [];
+			fromLandmark.unknownTargets.push({"bearing": measurement.bearing});
 		}
 
 	});
 
-	// start calculating island locations given the starting island
-	if (firstIsland) locateIsland(firstIsland, 0,0); // place the first island on origin immediately
-	if (secondIsland) {
-		let bearing = firstIsland.knownTargets[secondIsland.name].bearing * Math.PI / 180;
-		locateIsland(
-			secondIsland, Math.sin(bearing)
+	// start calculating landmark locations given the starting landmark
+	if (firstLandmark) locateLandmark(firstLandmark, 0,0); // place the first landmark on origin immediately
+	if (secondLandmark) {
+		let bearing = firstLandmark.knownTargets[secondLandmark.name].bearing * Math.PI / 180;
+		locateLandmark(
+			secondLandmark, Math.sin(bearing)
 			,Math.cos(bearing)
-		); // create the second island 1 unit away at specified angle
+		); // create the second landmark 1 unit away at specified angle
 	}
-	//updateChart();
+	render();
 
 	return landmarks;
 }
@@ -71,149 +92,161 @@ function calculateIslands() {
 /**
  * Update chart axes to neatly contain the map
  */
-function updateChart() {
+function render() {
 	// update chart boundaries
+	const svgNamespace = "http://www.w3.org/2000/svg";
+	
 	let boundaries = {
 		xMin: 0, xMax: 0, yMin: 0, yMax: 0
-	}
+	};
 
-	Object.values(landmarks).filter(island => island.located).forEach(island =>
-			boundaries = {
-				xMin: Math.min(boundaries.xMin, Math.round(island.x-1))
-				,xMax: Math.max(boundaries.xMax, Math.round(island.x + 1))
-				,yMin: Math.min(boundaries.yMin, Math.round(island.y -1))
-				,yMax: Math.max(boundaries.yMax, Math.round(island.y + 1))
-			}
-		);
+	Object.values(landmarks).filter(landmark => landmark.located).forEach(landmark =>
+		boundaries = {
+			xMin: Math.min(boundaries.xMin, Math.round(landmark.x-1))
+			,xMax: Math.max(boundaries.xMax, Math.round(landmark.x + 1))
+			,yMin: Math.min(boundaries.yMin, Math.round(landmark.y -1))
+			,yMax: Math.max(boundaries.yMax, Math.round(landmark.y + 1))
+		}
+	);
 
-	let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Bearings");
-	let chart = sheet.getCharts()[0];
-
-	chart = chart.modify()
-		.setOption("hAxis", {minValue: boundaries.xMin, maxValue: boundaries.xMax, gridlines: {count: 0}})
-		.setOption("vAxis", {minValue: boundaries.yMin, maxValue: boundaries.yMax, gridlines: {count: 0}})
-		.setOption("chartArea", {backgroundColor:"#transparent"})
-		.setOption("colors", ['silver', 'green'])
-		.build()
-	;
-	sheet.updateChart(chart);
+	Object.values(landmarks).forEach(landmark => {
+//		$("#map")[0].innerHTML = "";
+		
+		if (landmark.located === true) {
+			let landmarkSVG = document.createElementNS(svgNamespace, "circle");
+			landmarkSVG.setAttribute("cx", landmark.x);
+			landmarkSVG.setAttribute("cy", landmark.y);
+			landmarkSVG.setAttribute("r", 0.3);
+//			landmarkSVG.setAttribute("fill", "black");
+			landmarkSVG.classList.add(landmark.visited === true ? 'visited' : 'unvisited');
+			$("#map")[0].appendChild(landmarkSVG);
+		}
+	});
+	
 }
 
-/**
- * An island has been located. Analyse it alongside the other located islands to try find more
+/***
+ * A landmark has been located. Analyse it alongside the other located landmarks to try find more
+ * @param {type} landmark the landmark that has been located
+ * @param {type} x the X co-ordinate to record against the landmark
+ * @param {type} y the Y co-ordinate to record against the landmark
+ * @returns {undefined}
  */
-function locateIsland(island, x, y) {
-	Object.assign(island, {x:x, y:y, located:true});
-	let locatedQueue = [island];
+function locateLandmark(landmark, x, y) {
+	Object.assign(landmark, {x:x, y:y, located:true});
+	let locatedQueue = [landmark];
 
 	while (locatedQueue.length > 0) {
-		let island = locatedQueue.shift();
-		console.log(`${island.name} located @ [${island.x.toFixed(1)}, ${island.y.toFixed(1)}]`);
+		let landmark = locatedQueue.shift();
+		console.log(`${landmark.name} located @ [${landmark.x.toFixed(1)}, ${landmark.y.toFixed(1)}]`);
 
 		Object.values(landmarks)
 			.filter(
-				locatedIsland => locatedIsland.name !== island.name // it is not the same island
-				&& locatedIsland.located === true // has been previously located
-				&& inRange(island, locatedIsland) // within appropriate comparison range
+				locatedLandmark => locatedLandmark.name !== landmark.name // it is not the same landmark
+				&& locatedLandmark.located === true // has been previously located
+				&& inRange(landmark, locatedLandmark) // within appropriate comparison range
 			)
-			.forEach(locatedIsland => locatedQueue.push(...compareIsland(island, locatedIsland)));
+			.forEach(locatedLandmark => locatedQueue.push(...compareLandmark(landmark, locatedLandmark)));
 	}
 }
 
 /**
- * Compare two located islands
+ * Compare two located landmarks
  */
-function compareIsland(island1, island2) {
-	let locatedIslands = [];
+function compareLandmark(landmark1, landmark2) {
+	let locatedLandmarks = [];
 
-	// compare known locations of both islands
-	locatedIslands.push(...compareKnown(island1, island2));
+	// compare known locations of both landmarks
+	locatedLandmarks.push(...compareKnown(landmark1, landmark2));
 
-	// compare island 1 known to island 2 unknown
-	locatedIslands.push(...compareKnownUnknown(island1, island2));
-	locatedIslands.push(...compareKnownUnknown(island2, island1)); // also need to do this in reverse
+	// compare landmark 1 known to landmark 2 unknown
+	locatedLandmarks.push(...compareKnownUnknown(landmark1, landmark2));
+	locatedLandmarks.push(...compareKnownUnknown(landmark2, landmark1)); // also need to do this in reverse
 
-	return locatedIslands;
+	return locatedLandmarks;
 }
 
 /**
- * Compare known locations for  two islands
+ * Compare known locations for  two landmarks
  */
-function compareKnown(island1, island2) {
-	let locatedIslands = [];
-	if (island1.knownTargets !== undefined && island2.knownTargets !== undefined) {
-		Object.values(island1.knownTargets).forEach(knownTarget1 => {
-			let locatedIsland = null;
-			Object.values(island2.knownTargets).filter(knownTarget2 => knownTarget2.name == knownTarget1.name).forEach(knownTarget2 => {
-				if (locatedIsland !== null) return; // no need to process since the target has been resolved
-				let triangulation = triangulate(island1, knownTarget1.bearing, island2, knownTarget2.bearing);
+function compareKnown(landmark1, landmark2) {
+	let locatedLandmarks = [];
+	if (landmark1.knownTargets !== undefined && landmark2.knownTargets !== undefined) {
+		Object.values(landmark1.knownTargets).forEach(knownTarget1 => {
+			let locatedLandmark = null;
+			Object.values(landmark2.knownTargets).filter(knownTarget2 => knownTarget2.name == knownTarget1.name).forEach(knownTarget2 => {
+				if (locatedLandmark !== null) return; // no need to process since the target has been resolved
+				let triangulation = triangulate(landmark1, knownTarget1.bearing, landmark2, knownTarget2.bearing);
 
 				if (debug) {
-					console.log(`Triangulating ${knownTarget1.name} from ${island1.name}(${knownTarget1.bearing}) and ${island2.name}(${knownTarget2.bearing})`);
+					console.log(`Triangulating ${knownTarget1.name} from ${landmark1.name}(${knownTarget1.bearing}) and ${landmark2.name}(${knownTarget2.bearing})`);
 					if (triangulation) {
-						console.log(`Triangulated ${knownTarget1.name} x: ${triangulation.x}, y:${triangulation.y} from ${island1.name}(${knownTarget1.bearing}) and ${island2.name}(${knownTarget2.bearing})`);
+						console.log(`Triangulated ${knownTarget1.name} x: ${triangulation.x}, y:${triangulation.y} from ${landmark1.name}(${knownTarget1.bearing}) and ${landmark2.name}(${knownTarget2.bearing})`);
 					} else {
-						console.log(`Unable to triangulate ${knownTarget1.name} from ${island1.name}(${knownTarget1.bearing}) and ${island2.name}(${knownTarget2.bearing})`);
+						console.log(`Unable to triangulate ${knownTarget1.name} from ${landmark1.name}(${knownTarget1.bearing}) and ${landmark2.name}(${knownTarget2.bearing})`);
 					}
 				}
 
-				if (!landmarks[knownTarget1.name].located && inRange(island1, triangulation)) {
-					let locatedIsland = Object.assign(
+				if (!landmarks[knownTarget1.name].located && inRange(landmark1, triangulation)) {
+					let locatedLandmark = Object.assign(
 						landmarks[knownTarget1.name]
 						,triangulation
 						,{located: true}
 					);
-					locatedIslands.push(locatedIsland);
+					locatedLandmarks.push(locatedLandmark);
 				}
 			});
 		});
 	}
-	return locatedIslands;
+	return locatedLandmarks;
 }
 
 /**
- * Compare known targets for an island against unknown targets for the other island
+ * Compare known targets for an landmark against unknown targets for the other landmark
+ * @param {Object} knownLandmark landmark with known bearings
+ * @param {Object} unknownLandmark landmark with unknown bearings
+ * @returns {Array|compareKnownUnknown.locatedLandmarks}
  */
-function compareKnownUnknown(knownIsland, unknownIsland) {
-	let locatedIslands = [];
-	if (knownIsland.knownTargets !== undefined && unknownIsland.unknownTargets !== undefined) {
-		Object.values(knownIsland.knownTargets).forEach(knownTarget1 => {
-			let locatedIsland = null;
-			Object.values(unknownIsland.unknownTargets).forEach((unknownTarget, index) => {
-				if (locatedIsland !== null) return; // no need to process since the target has been resolved
-				let triangulation = triangulate(knownIsland, knownTarget1.bearing ,unknownIsland, unknownTarget.bearing);
+function compareKnownUnknown(knownLandmark, unknownLandmark) {
+	let locatedLandmarks = [];
+	if (knownLandmark.knownTargets !== undefined && unknownLandmark.unknownTargets !== undefined) {
+		Object.values(knownLandmark.knownTargets).forEach(knownTarget1 => {
+			let locatedLandmark = null;
+			Object.values(unknownLandmark.unknownTargets).forEach((unknownTarget, index) => {
+				if (locatedLandmark !== null) return; // no need to process since the target has been resolved
+				let triangulation = triangulate(knownLandmark, knownTarget1.bearing ,unknownLandmark, unknownTarget.bearing);
 
 				if (debug) {
-					console.log(`Triangulating ${knownTarget1.name} from ${knownIsland.name}(${knownTarget1.bearing}) and ${unknownIsland.name}(${unknownTarget.bearing})`);
+					console.log(`Triangulating ${knownTarget1.name} from ${knownLandmark.name}(${knownTarget1.bearing}) and ${unknownLandmark.name}(${unknownTarget.bearing})`);
 					if (triangulation) {
-						console.log(`Triangulated ${knownTarget1.name} x: ${triangulation.x}, y:${triangulation.y} from ${knownIsland.name}(${knownTarget1.bearing}) and ${unknownIsland.name}(${unknownTarget.bearing})`);
+						console.log(`Triangulated ${knownTarget1.name} x: ${triangulation.x}, y:${triangulation.y} from ${knownLandmark.name}(${knownTarget1.bearing}) and ${unknownLandmark.name}(${unknownTarget.bearing})`);
 					} else {
-						console.log(`Unable to triangulate ${knownTarget1.name} from ${knownIsland.name}(${knownTarget1.bearing}) and ${unknownIsland.name}(${unknownTarget.bearing})`);
+						console.log(`Unable to triangulate ${knownTarget1.name} from ${knownLandmark.name}(${knownTarget1.bearing}) and ${unknownLandmark.name}(${unknownTarget.bearing})`);
 					}
 				}
 
-				if (!landmarks[knownTarget1.name].located && inRange(knownIsland, triangulation)) {
-					let locatedIsland = Object.assign(landmarks[knownTarget1.name], triangulation, {located: true});
-					locatedIslands.push(locatedIsland);
+				if (!landmarks[knownTarget1.name].located && inRange(knownLandmark, triangulation)) {
+					let locatedLandmark = Object.assign(landmarks[knownTarget1.name], triangulation, {located: true});
+					locatedLandmarks.push(locatedLandmark);
 
-					unknownIsland.unknownTargets.splice(index, 1); // remove this entry from the unknown targets since it has been resolved
+					unknownLandmark.unknownTargets.splice(index, 1); // remove this entry from the unknown targets since it has been resolved
 				}
 			});
 		});
 	}
-	return locatedIslands;
+	return locatedLandmarks;
 }
 
 /**
- * Determine whether two islands co-ordinates are within an appropriate range
+ * Determine whether two landmarks co-ordinates are within an appropriate range
  */
-function inRange(island1, island2) {
+function inRange(landmark1, landmark2) {
 	if (
-		!island1 || !island2 
-		|| island1.x === null || island1.y === null || island2.x === null || island2.y === null
+		!landmark1 || !landmark2 
+		|| landmark1.x === null || landmark1.y === null || landmark2.x === null || landmark2.y === null
 	) return false;
-	let islandDistance = distance(island1.x, island1.y, island2.x, island2.y);
-	return (islandDistance <= (maxDistanceMultiplier) && islandDistance > (0.2));
+	let landmarkDistance = distance(landmark1.x, landmark1.y, landmark2.x, landmark2.y);
+	return (landmarkDistance <= (maxDistanceMultiplier) && landmarkDistance > (0.2));
 }
 
 /**
@@ -265,7 +298,6 @@ function bearingTo(a, b) {
 	let bearing = Math.atan2(b.x - a.x, b.y - a.y) * 180 / Math.PI;
 	return bearing;
 }
-
 
 /**
  * Distance between points A and B
