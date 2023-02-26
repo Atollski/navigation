@@ -1,9 +1,11 @@
 let landmarks = {};
-let maxDistanceMultiplier = 3;
-let measurements = {};
-let debug = true; // triangulation debugging
+let measurements = {}; // user recorded measurements
+let maxDistanceMultiplier = 3; // used for range checking - to be removed
 
-
+/**
+ * Add a new measurement from the input form
+ * @returns {undefined}
+ */
 function addMeasurement() {
 	let id = 1;
 	Object.values(measurements).forEach(measurement => id = Math.max(id, measurement.id + 1));
@@ -19,6 +21,8 @@ function addMeasurement() {
 	document.addMeasurement.to.value = "";
 	setVariable(document.addMeasurement.bearing);
 	document.addMeasurement.bearing.focus();
+	
+	// build the picker list in the from box
 	$("#fromList")[0].innerHTML = "";
 	Object.values(landmarks).forEach(landmark=>{
 		let newOption = $("#landmark")[0].content.cloneNode(true);
@@ -27,6 +31,11 @@ function addMeasurement() {
 	});
 }
 
+/**
+ * Set a measurement
+ * @param {Object} measurement to update or add
+ * @returns {undefined}
+ */
 function setMeasurement(measurement) {
 	measurements[measurement.id] = measurement;
 	
@@ -74,6 +83,8 @@ function calculateLandmarks() {
 		}
 
 	});
+	
+//	console.log(firstLandmarks);
 
 	// start calculating landmark locations given the starting landmark
 	if (firstLandmark) locateLandmark(firstLandmark, 0,0); // place the first landmark on origin immediately
@@ -152,6 +163,9 @@ function locateLandmark(landmark, x, y) {
 
 /**
  * Compare two located landmarks
+ * @param {type} landmark1
+ * @param {type} landmark2
+ * @returns {Array|compareLandmark.locatedLandmarks}
  */
 function compareLandmark(landmark1, landmark2) {
 	let locatedLandmarks = [];
@@ -168,24 +182,19 @@ function compareLandmark(landmark1, landmark2) {
 
 /**
  * Compare known locations for  two landmarks
+ * 
+ * @param {type} landmark1 the first landmark to compare
+ * @param {type} landmark2 the second landmark to compare
+ * @returns {Array|compareKnown.locatedLandmarks}
  */
 function compareKnown(landmark1, landmark2) {
 	let locatedLandmarks = [];
 	if (landmark1.knownTargets !== undefined && landmark2.knownTargets !== undefined) {
 		Object.values(landmark1.knownTargets).forEach(knownTarget1 => {
 			let locatedLandmark = null;
-			Object.values(landmark2.knownTargets).filter(knownTarget2 => knownTarget2.name == knownTarget1.name).forEach(knownTarget2 => {
+			Object.values(landmark2.knownTargets).filter(knownTarget2 => knownTarget2.name === knownTarget1.name).forEach(knownTarget2 => {
 				if (locatedLandmark !== null) return; // no need to process since the target has been resolved
 				let triangulation = triangulate(landmark1, knownTarget1.bearing, landmark2, knownTarget2.bearing);
-
-				if (debug) {
-					console.log(`Triangulating ${knownTarget1.name} from ${landmark1.name}(${knownTarget1.bearing}) and ${landmark2.name}(${knownTarget2.bearing})`);
-					if (triangulation) {
-						console.log(`Triangulated ${knownTarget1.name} x: ${triangulation.x}, y:${triangulation.y} from ${landmark1.name}(${knownTarget1.bearing}) and ${landmark2.name}(${knownTarget2.bearing})`);
-					} else {
-						console.log(`Unable to triangulate ${knownTarget1.name} from ${landmark1.name}(${knownTarget1.bearing}) and ${landmark2.name}(${knownTarget2.bearing})`);
-					}
-				}
 
 				if (!landmarks[knownTarget1.name].located && inRange(landmark1, triangulation)) {
 					let locatedLandmark = Object.assign(
@@ -216,15 +225,6 @@ function compareKnownUnknown(knownLandmark, unknownLandmark) {
 				if (locatedLandmark !== null) return; // no need to process since the target has been resolved
 				let triangulation = triangulate(knownLandmark, knownTarget1.bearing ,unknownLandmark, unknownTarget.bearing);
 
-				if (debug) {
-					console.log(`Triangulating ${knownTarget1.name} from ${knownLandmark.name}(${knownTarget1.bearing}) and ${unknownLandmark.name}(${unknownTarget.bearing})`);
-					if (triangulation) {
-						console.log(`Triangulated ${knownTarget1.name} x: ${triangulation.x}, y:${triangulation.y} from ${knownLandmark.name}(${knownTarget1.bearing}) and ${unknownLandmark.name}(${unknownTarget.bearing})`);
-					} else {
-						console.log(`Unable to triangulate ${knownTarget1.name} from ${knownLandmark.name}(${knownTarget1.bearing}) and ${unknownLandmark.name}(${unknownTarget.bearing})`);
-					}
-				}
-
 				if (!landmarks[knownTarget1.name].located && inRange(knownLandmark, triangulation)) {
 					let locatedLandmark = Object.assign(landmarks[knownTarget1.name], triangulation, {located: true});
 					locatedLandmarks.push(locatedLandmark);
@@ -239,6 +239,10 @@ function compareKnownUnknown(knownLandmark, unknownLandmark) {
 
 /**
  * Determine whether two landmarks co-ordinates are within an appropriate range
+ * @param {Object} landmark1 first landmark with x,y co-ordinates
+ * @param {Object} landmark2 second landmark with x,y co-ordinates
+ * @returns {Boolean} true if landmarks are within a sensible range to compare for triangulation.
+ * This is also used to check a triangulation result to determine whether it is within appropriate range of the origin landmarks
  */
 function inRange(landmark1, landmark2) {
 	if (
@@ -279,7 +283,7 @@ function triangulate(a, ac, b, bc) {
 	let triangulation = {
 		x: a.x + (cy - a.y) * Math.tan(acr)
 		,y: cy
-	}
+	};
 
 	// determine that the triangulated bearings correspond with provided bearings (can be 180 deg out)
 	if (Math.abs((bearingTo(a, triangulation) - ac) % 360) > 0.01) return null;
