@@ -51,6 +51,7 @@ function calculateLandmarks() {
 	let firstLandmark = null;
 	let secondLandmark = null;
 	let firstLandmarks = {}; // use this to calculate the first two landmarks
+	let landmarkFallback = null; // if 
 
 	// construct initial data from measurements data
 
@@ -67,6 +68,9 @@ function calculateLandmarks() {
 		if (measurement.to !== "") { // the destination has been named
 			// initialise known targets array
 			firstLandmarks[measurement.to] = measurement;
+			if (landmarkFallback === undefined) {
+				landmarkFallback = measurement;
+			}
 
 			fromLandmark.knownTargets = fromLandmark.knownTargets || {};
 
@@ -87,14 +91,20 @@ function calculateLandmarks() {
 //	console.log(firstLandmarks);
 
 	// start calculating landmark locations given the starting landmark
-	if (firstLandmark) locateLandmark(firstLandmark, 0,0); // place the first landmark on origin immediately
-	if (secondLandmark) {
+	if (!firstLandmark && landmarkFallback) {
+		firstLandmark = landmarks[landmarkFallback].from;
+		secondLandmark = landmarks[landmarkFallback].to;
+	}
+		
+	if (firstLandmark && secondLandmark) {
+		locateLandmark(firstLandmark, 0,0); // place the first landmark on origin immediately
 		let bearing = firstLandmark.knownTargets[secondLandmark.name].bearing * Math.PI / 180;
 		locateLandmark(
 			secondLandmark, Math.sin(bearing)
 			,Math.cos(bearing)
 		); // create the second landmark 1 unit away at specified angle
 	}
+
 	render();
 
 	return landmarks;
