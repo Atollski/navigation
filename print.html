@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+  <head>
+		<title>Navigation</title>
+		<meta charset="UTF-8">
+		<style>
+			html, body {
+				box-sizing: border-box;
+				margin: 0;
+				border: 0;
+			}
+			/*210*297*/
+			body tbody p {
+				background-color: red;
+				opacity: 0.2;
+			}
+			
+			body > table {
+				width: 100%;
+				border-spacing: 0;
+			}
+			
+			.header, .footer {
+				vertical-align: top;	
+				background-color: yellow;
+				opacity: 0.3;
+				border: 1px solid black;
+				box-sizing: border-box;
+				padding: 0;
+			}
+			
+			.header {
+				height: 3cm;
+				
+			}
+			
+			.footer {
+				height: 2cm;
+			}
+			
+			body > .header, body > .footer {
+				position: fixed;
+				width: 100%;
+			}
+			
+			body > .header {
+				top: 0;
+			}
+			
+			body > .footer {
+				bottom: 0;
+			}
+			
+			@media print {
+				body td.footer {
+					visibility: hidden;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		
+		<table>
+			<thead>
+				<tr>
+					<td class="header">
+						<p>My header</p>
+					</td>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>
+						<p style="height:20.1cm;">Content</p>
+						<p>Some more Content</p>
+						<p>And a bit more Content</p>
+					</td>
+				</tr>
+			</tbody>
+			<tfoot class="footer">
+				<tr>
+					<td class="footer">
+						<p>My footer</p>
+					</td>
+				</tr>
+			</tfoot>
+		</table>
+		
+		<div class="header">
+			<p>My header</p>
+		</div>
+		<div class="footer">
+			<p>My footer</p>
+		</div>
+		
+	</body>
+</html>

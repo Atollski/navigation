@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+  <head>
+	<title>Navigation</title>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<script src="calculator.js"></script>
+	<style>
+		
+		html, body {
+			box-sizing: border-box;
+		}
+		
+		html {
+			height: 100vh;
+			background-color: #ff000026;
+			margin: 0px;
+			padding: 10px;
+		}
+		
+		body {
+			height: 100%;
+			margin: 0;
+			background-color: #005aff38;
+		}
+		
+		
+		
+		input {
+			height: 25px;
+			border-width: 1px;
+			border-radius: 3px;
+			transition: 1s;
+			transition-delay: 0.2s;
+			box-sizing: border-box;
+		}
+		
+		.container {
+			display:flex;
+			height: 100%;
+			max-height: 100%;
+			flex-wrap: wrap;
+			box-sizing: border-box;
+			/*border: 1px solid green;*/
+		}
+		
+		.container > .fill {
+			flex-grow: 1;
+		}
+		
+		.container > * {
+			/*border: 1px solid red;*/
+			box-sizing: border-box;
+		}
+		
+		.container.col {
+			flex-direction: column;
+		}
+		
+		svg {
+			max-height: 100%;
+			max-width: 100%;
+			border-color: green;
+		}
+
+		.compass {
+			width: 50px;
+			text-align: right;
+			background-image:
+				radial-gradient(white 40%, transparent 50%)
+				,conic-gradient(from calc((var(--bearing) - 10) * 1deg) ,transparent ,red 10deg, transparent 20deg)		
+				,radial-gradient(white 60%, transparent 70%)
+				/*,linear-gradient(transparent 45%, black 45% 55%, transparent 55%)*/
+				,linear-gradient(transparent 45.5%, black 45.5% 54.5%, transparent 54.5%)
+				,linear-gradient(90deg, transparent 48%, black 48% 52%, transparent 52%)
+				,linear-gradient(-45deg, transparent 48%, black 48% 52%, transparent 52%)
+				,linear-gradient(45deg, transparent 48%, black 48% 52%, transparent 52%)
+			;
+		}
+
+		.compass:focus {
+			border-radius: 50%;
+			transition: 0.2s;
+			transition-delay: 0s;
+			height: 50px;
+			background-image: 
+				conic-gradient(from calc((var(--bearing) - 10) * 1deg) ,transparent ,red 10deg, transparent 20deg)
+				,radial-gradient(white 45%, transparent 50%, #c7b27973 80%)
+				,repeating-conic-gradient(
+					black 0deg
+					,transparent 2deg 13deg
+					,black 15deg
+				)
+			;
+		}
+	</style>
+	
+	<script>
+
+		function setVariable(target) {
+			if (target.dataset.variable !== undefined) {
+				target.style.setProperty("--" + target.dataset.variable, target.value);
+			}
+			return false;
+		}
+		
+		document.addEventListener("input", event => setVariable(event.target));
+		
+		// easier element selector
+		var $ = id => {return document.querySelectorAll(id);};	
+	</script>
+	</head>
+	<body class="container col">
+		<template id="editMeasurement">
+			<div class="measurement">
+				<input name="from" type="text" list="fromList" placeholder="From landmark" title="Landmark from where bearing taken" required />
+				<datalist id="fromList"></datalist>
+				<input name="bearing" type="number" class="compass" data-variable="bearing" placeholder="Brng" title="Bearing from landmark to observed landmark" required />
+				<input name="to" type="text" list="toList" placeholder="Observed landmark" title="Observed landmark" />
+				<datalist id="toList"></datalist>
+			</div>
+		</template>
+		
+		<template id="landmark">
+			<option></option>
+		</template>
+		
+		
+		
+		
+		
+		<div>
+			<form name="addMeasurement" action="javascript:addMeasurement();" autocomplete="off">
+				<div class="measurement">
+					<input name="from" value="Start" type="text" list="fromList" placeholder="From landmark" title="Landmark from where bearing taken" required />
+					<datalist id="fromList"></datalist>
+					<input name="bearing" value="0" type="number" class="compass" data-variable="bearing" placeholder="Brng" title="Bearing from landmark to observed landmark" required />
+					<input name="to" value="Somewhere" type="text" list="toList" placeholder="Observed landmark" title="Observed landmark" />
+					<datalist id="toList"></datalist>
+					<input type="submit" value="Add" />
+				</div>
+			</form>
+		</div>
+		<div class="fill">
+			<svg id="map" viewbox="-5 -5 10 10"></svg>
+		</div>
+	</body>
+</html>
